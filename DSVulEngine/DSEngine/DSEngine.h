@@ -74,6 +74,7 @@ private:
     std::vector<VkImage> m_SwapChainImages;
     VkFormat m_SwapChainImageFormat;
     VkExtent2D m_SwapChainExtent;
+    std::vector<VkImageView> m_SwapChainImageViews;
 
 
     void InitWindow();
@@ -98,6 +99,7 @@ private:
     void CreateLogicalDevice();
 
     void CreateSwapChain();
+    void CreateImageViews();
 
     SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device);
     VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
