@@ -37,11 +37,6 @@ const std::vector<const char*> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
-std::vector<VkDynamicState> dynamicStates = {
-    VK_DYNAMIC_STATE_VIEWPORT,
-    VK_DYNAMIC_STATE_SCISSOR
-};
-
 
 class DSEngine {
 public:
@@ -80,14 +75,25 @@ private:
     VkFormat m_SwapChainImageFormat;
     VkExtent2D m_SwapChainExtent;
     std::vector<VkImageView> m_SwapChainImageViews;
+    std::vector<VkFramebuffer> m_SwapChainFramebuffers;
+
     VkRenderPass m_RenderPass;
     VkPipelineLayout m_PipelineLayout;
+    VkPipeline m_GraphicsPipeline;
 
+    VkCommandPool m_CommandPool;
+    VkCommandBuffer m_CommandBuffer;
+
+    VkSemaphore m_ImageAvailableSemaphore;
+    VkSemaphore m_RenderFinishedSemaphore;
+    VkFence m_InFlightFence;
 
     void InitWindow();
     void InitVulkan();
     void MainLoop();
     void Cleanup();
+
+    void DrawFrame();
 
     void CreateInstance();
     void SetupDebugMessenger();
@@ -98,6 +104,13 @@ private:
     void CreateImageViews();
     void CreateRenderPass();
     void CreateGraphicsPipeline();
+    void CreateFramebuffers();
+    void CreateCommandPool();
+    void CreateCommandBuffer();
+    void CreateSyncObjects();
+
+    void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+
     VkShaderModule CreateShaderModule(const std::vector<char>& code);
 
     std::vector<const char*> GetRequiredExtensions();
