@@ -43,6 +43,7 @@ public:
     void Run();
 
 private:
+    const int MAX_FRAMES_IN_FLIGHT = 2;
     const uint32_t DEFAULTWIDTH = 800;
     const uint32_t DEFAULTHEIGHT = 600;
 
@@ -55,6 +56,8 @@ private:
 #else
     const bool enableValidationLayers = true;
 #endif
+
+    uint32_t m_CurrentFrame = 0;
 
     GLFWwindow* m_Window;
 
@@ -82,11 +85,11 @@ private:
     VkPipeline m_GraphicsPipeline;
 
     VkCommandPool m_CommandPool;
-    VkCommandBuffer m_CommandBuffer;
 
-    VkSemaphore m_ImageAvailableSemaphore;
-    VkSemaphore m_RenderFinishedSemaphore;
-    VkFence m_InFlightFence;
+    std::vector <VkCommandBuffer> m_CommandBuffers;
+    std::vector <VkSemaphore> m_ImageAvailableSemaphores;
+    std::vector <VkSemaphore> m_RenderFinishedSemaphores;
+    std::vector <VkFence> m_InFlightFences;
 
     void InitWindow();
     void InitVulkan();
@@ -106,7 +109,7 @@ private:
     void CreateGraphicsPipeline();
     void CreateFramebuffers();
     void CreateCommandPool();
-    void CreateCommandBuffer();
+    void CreateCommandBuffers();
     void CreateSyncObjects();
 
     void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
