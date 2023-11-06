@@ -95,6 +95,7 @@ void DSEngine::CreateInstance()
 void DSEngine::PickPhysicalDevice()
 {
     uint32_t deviceCount = 0;
+
     // Get the Device Count
     vkEnumeratePhysicalDevices(m_Instance, &deviceCount, nullptr);
 
@@ -102,7 +103,7 @@ void DSEngine::PickPhysicalDevice()
         throw std::runtime_error("failed to find GPUs with Vulkan support!");
     }
 
-    // Using the Device Count Generate the Data
+    // Using the Device Count to Generate the Data
     std::vector<VkPhysicalDevice> devices(deviceCount);
     vkEnumeratePhysicalDevices(m_Instance, &deviceCount, devices.data());
 
