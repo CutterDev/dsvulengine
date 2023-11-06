@@ -38,6 +38,7 @@ void DSEngine::InitVulkan()
     SetupDebugMessenger();
 
     PickPhysicalDevice();
+    CreateLogicalDevice();
 }
 
 // Instance of Vulkan
@@ -160,8 +161,57 @@ QueueFamilyIndices DSEngine::FindQueueFamilies(VkPhysicalDevice device)
 // End Physical Devices
 // ============================================================================================================================
 
+
+// Logical Devices
+// ============================================================================================================================
+
+void DSEngine::CreateLogicalDevice()
+{
+    QueueFamilyIndices indices = FindQueueFamilies(m_PhysicalDevice);
+
+    // Number of Queues we want for a queue family
+    VkDeviceQueueCreateInfo queueCreateInfo{};
+    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueCreateInfo.queueFamilyIndex = indices.GraphicsFamily.value();
+    queueCreateInfo.queueCount = 1;
+
+    float queuePriority = 1.0f;
+    queueCreateInfo.pQueuePriorities = &queuePriority;
+
+    VkPhysicalDeviceFeatures deviceFeatures{};
+
+
+    VkDeviceCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    createInfo.pQueueCreateInfos = &queueCreateInfo;
+    createInfo.queueCreateInfoCount = 1;
+
+    createInfo.pEnabledFeatures = &deviceFeatures;
+
+    createInfo.enabledExtensionCount = 0;
+
+    if (enableValidationLayers) {
+        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+        createInfo.ppEnabledLayerNames = validationLayers.data();
+    }
+    else {
+        createInfo.enabledLayerCount = 0;
+    }
+
+    if (vkCreateDevice(m_PhysicalDevice, &createInfo, nullptr, &m_Device) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create logical device!");
+    }
+
+
+    vkGetDeviceQueue(m_Device, indices.GraphicsFamily.value(), 0, &m_GraphicsQueue);
+}
+
+// End Logical Devices
+// ============================================================================================================================
 void DSEngine::Cleanup()
 {
+    vkDestroyDevice(m_Device, nullptr);
+
     if (enableValidationLayers)
     {
         DestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);

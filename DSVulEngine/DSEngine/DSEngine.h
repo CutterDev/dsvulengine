@@ -46,6 +46,10 @@ private:
 
     VkPhysicalDevice m_PhysicalDevice = VK_NULL_HANDLE;
 
+    VkDevice m_Device;
+
+    VkQueue m_GraphicsQueue;
+
 
     void InitWindow();
     void InitVulkan();
@@ -63,6 +67,8 @@ private:
     bool IsDeviceSuitable(VkPhysicalDevice device);
 
     QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
+
+    void CreateLogicalDevice();
 
     bool CheckValidationLayerSupport();
     void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
