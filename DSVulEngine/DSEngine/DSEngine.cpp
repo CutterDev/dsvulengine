@@ -36,6 +36,8 @@ void DSEngine::InitVulkan()
     CreateInstance();
     // Debugging
     SetupDebugMessenger();
+
+    PickPhysicalDevice();
 }
 
 // Instance of Vulkan
@@ -87,6 +89,75 @@ void DSEngine::CreateInstance()
         throw std::runtime_error("failed to create instance!");
     }
 }
+
+// Physical Devices
+// ============================================================================================================================
+void DSEngine::PickPhysicalDevice()
+{
+    uint32_t deviceCount = 0;
+    // Get the Device Count
+    vkEnumeratePhysicalDevices(m_Instance, &deviceCount, nullptr);
+
+    if (deviceCount == 0) {
+        throw std::runtime_error("failed to find GPUs with Vulkan support!");
+    }
+
+    // Using the Device Count Generate the Data
+    std::vector<VkPhysicalDevice> devices(deviceCount);
+    vkEnumeratePhysicalDevices(m_Instance, &deviceCount, devices.data());
+
+    for (const auto& device : devices)
+    {
+        if (IsDeviceSuitable(device))
+        {
+            m_PhysicalDevice = device;
+            break;
+        }
+    }
+
+    if (m_PhysicalDevice == VK_NULL_HANDLE) {
+        throw std::runtime_error("failed to find a suitable GPU!");
+    }
+}
+
+bool DSEngine::IsDeviceSuitable(VkPhysicalDevice device)
+{
+    QueueFamilyIndices indices = FindQueueFamilies(device);
+
+    return indices.IsComplete();
+}
+
+QueueFamilyIndices DSEngine::FindQueueFamilies(VkPhysicalDevice device)
+{
+    QueueFamilyIndices indices = {};
+
+    // Get Families Count
+    uint32_t queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+
+    // Populate the families
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+
+    int i = 0;
+    for (const auto& queueFamily : queueFamilies) {
+        if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+            indices.GraphicsFamily = i;
+        }
+
+        if (indices.IsComplete())
+        {
+            break;
+        }
+
+        i++;
+    }
+
+    return indices;
+}
+
+// End Physical Devices
+// ============================================================================================================================
 
 void DSEngine::Cleanup()
 {

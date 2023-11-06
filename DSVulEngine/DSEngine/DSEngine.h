@@ -1,4 +1,5 @@
 #pragma once
+
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -8,6 +9,16 @@
 #include <cstdlib>
 
 #include <vector>
+#include <optional>
+
+struct QueueFamilyIndices {
+    std::optional<uint32_t> GraphicsFamily;
+
+    bool IsComplete() {
+        return GraphicsFamily.has_value();
+    }
+};
+
 
 class DSEngine {
 public:
@@ -33,6 +44,8 @@ private:
 
     VkDebugUtilsMessengerEXT m_DebugMessenger;
 
+    VkPhysicalDevice m_PhysicalDevice = VK_NULL_HANDLE;
+
 
     void InitWindow();
     void InitVulkan();
@@ -45,6 +58,11 @@ private:
     std::vector<const char*> GetRequiredExtensions();
 
     void SetupDebugMessenger();
+
+    void PickPhysicalDevice();
+    bool IsDeviceSuitable(VkPhysicalDevice device);
+
+    QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
 
     bool CheckValidationLayerSupport();
     void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
