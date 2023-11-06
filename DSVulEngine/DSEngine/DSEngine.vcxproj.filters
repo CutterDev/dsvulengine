@@ -24,10 +24,21 @@
     <Filter Include="Resource Files">
       <UniqueIdentifier>{be65b45a-df17-49f2-b61a-d39c9e5578ea}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resource Files\Shaders">
+      <UniqueIdentifier>{d77c5317-f585-4691-8f70-a4daa07ba156}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DSEngine.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Shaders\frag.spv">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="..\..\Shaders\vert.spv">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

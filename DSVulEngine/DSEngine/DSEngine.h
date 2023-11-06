@@ -6,7 +6,7 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
 
-
+#include <fstream>
 #include <iostream>
 #include <limits> // Necessary for std::numeric_limits
 #include <algorithm> // Necessary for std::clamp
@@ -35,6 +35,11 @@ struct SwapChainSupportDetails {
 
 const std::vector<const char*> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
+};
+
+std::vector<VkDynamicState> dynamicStates = {
+    VK_DYNAMIC_STATE_VIEWPORT,
+    VK_DYNAMIC_STATE_SCISSOR
 };
 
 
@@ -75,6 +80,8 @@ private:
     VkFormat m_SwapChainImageFormat;
     VkExtent2D m_SwapChainExtent;
     std::vector<VkImageView> m_SwapChainImageViews;
+    VkRenderPass m_RenderPass;
+    VkPipelineLayout m_PipelineLayout;
 
 
     void InitWindow();
@@ -83,24 +90,21 @@ private:
     void Cleanup();
 
     void CreateInstance();
+    void SetupDebugMessenger();
+    void CreateSurface();
+    void PickPhysicalDevice();
+    void CreateLogicalDevice();
+    void CreateSwapChain();
+    void CreateImageViews();
+    void CreateRenderPass();
+    void CreateGraphicsPipeline();
+    VkShaderModule CreateShaderModule(const std::vector<char>& code);
 
     std::vector<const char*> GetRequiredExtensions();
-
-    void SetupDebugMessenger();
-
-    void PickPhysicalDevice();
     bool IsDeviceSuitable(VkPhysicalDevice device);
     bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
 
-    void CreateSurface();
-
     QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
-
-    void CreateLogicalDevice();
-
-    void CreateSwapChain();
-    void CreateImageViews();
-
     SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device);
     VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
     VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
@@ -131,4 +135,22 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
     std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
 
     return VK_FALSE;
+}
+
+static std::vector<char> ReadFile(const std::string& filename) {
+    std::ifstream file(filename, std::ios::ate | std::ios::binary);
+
+    if (!file.is_open()) {
+        throw std::runtime_error("failed to open file!");
+    }
+
+    size_t fileSize = (size_t)file.tellg();
+    std::vector<char> buffer(fileSize);
+
+    file.seekg(0);
+    file.read(buffer.data(), fileSize);
+
+    file.close();
+
+    return buffer;
 }
