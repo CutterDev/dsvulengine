@@ -1,5 +1,7 @@
 #include "DSEngine.h"
 
+static void FramebufferResizeCallback(GLFWwindow* window, int width, int height);
+
 void DSEngine::Run()
 {
     //
@@ -29,7 +31,17 @@ void DSEngine::DrawFrame()
     vkResetFences(m_Device, 1, &m_InFlightFences[m_CurrentFrame]);
 
     uint32_t imageIndex;
-    vkAcquireNextImageKHR(m_Device, m_SwapChain, UINT64_MAX, m_ImageAvailableSemaphores[m_CurrentFrame], VK_NULL_HANDLE, &imageIndex);
+    VkResult result =  vkAcquireNextImageKHR(m_Device, m_SwapChain, UINT64_MAX, m_ImageAvailableSemaphores[m_CurrentFrame], VK_NULL_HANDLE, &imageIndex);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        RecreateSwapChain();
+        return;
+    }
+    else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        throw std::runtime_error("failed to acquire swap chain image!");
+    }
+
+    vkResetFences(m_Device, 1, &m_InFlightFences[m_CurrentFrame]);
 
     vkResetCommandBuffer(m_CommandBuffers[m_CurrentFrame], 0);
     RecordCommandBuffer(m_CommandBuffers[m_CurrentFrame], imageIndex);
@@ -66,7 +78,21 @@ void DSEngine::DrawFrame()
 
     presentInfo.pImageIndices = &imageIndex;
 
-    vkQueuePresentKHR(m_PresentQueue, &presentInfo);
+    // We want to check if the image is valid with the current swapchain/
+    result = vkQueuePresentKHR(m_PresentQueue, &presentInfo);
+    
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_FramebufferResized)
+    {
+        m_FramebufferResized = false;
+        // Recreate swap chain if image out of date
+        RecreateSwapChain();
+    }
+    else if (result != VK_SUCCESS) 
+    {
+        // Something seriously went wrong.
+        throw std::runtime_error("failed to acquire swap chain image!");
+    }
+
 
     m_CurrentFrame = (m_CurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
@@ -79,6 +105,8 @@ void DSEngine::InitWindow()
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     m_Window = glfwCreateWindow(DEFAULTWIDTH, DEFAULTHEIGHT, "DSEngine", nullptr, nullptr);
+    glfwSetFramebufferSizeCallback(m_Window, FramebufferResizeCallback);
+    glfwSetWindowUserPointer(m_Window, this);
 }
 
 // Initialize Vulkan
@@ -100,6 +128,7 @@ void DSEngine::InitVulkan()
     CreateGraphicsPipeline();
     CreateFramebuffers();
     CreateCommandPool();
+    CreateVertexBuffer();
     CreateCommandBuffers();
     CreateSyncObjects();
 }
@@ -413,6 +442,37 @@ void DSEngine::CreateSwapChain()
     m_SwapChainExtent = extent;
 }
 
+void DSEngine::RecreateSwapChain()
+{
+    int width = 0, height = 0;
+    glfwGetFramebufferSize(m_Window, &width, &height);
+    while (width == 0 || height == 0) {
+        glfwGetFramebufferSize(m_Window, &width, &height);
+        glfwWaitEvents();
+    }
+
+    vkDeviceWaitIdle(m_Device);
+
+    CreateSwapChain();
+    CreateImageViews();
+    CreateFramebuffers();
+}
+
+void DSEngine::CleanupSwapChain() {
+    for (auto framebuffer : m_SwapChainFramebuffers) {
+        vkDestroyFramebuffer(m_Device, framebuffer, nullptr);
+    }
+
+    // Image Views first because if the images/swap chains are destroy first... the image view may still be using
+    for (auto imageView : m_SwapChainImageViews) {
+        vkDestroyImageView(m_Device, imageView, nullptr);
+    }
+
+
+    //Swap Chain next
+    vkDestroySwapchainKHR(m_Device, m_SwapChain, nullptr);
+}
+
 void DSEngine::CreateImageViews()
 {
     // Each image will be a view so resize it.
@@ -511,8 +571,14 @@ void DSEngine::CreateGraphicsPipeline()
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount = 0;
-    vertexInputInfo.vertexAttributeDescriptionCount = 0;
+
+    auto bindingDescription = Vertex::GetBindingDesc();
+    auto attributeDescriptions = Vertex::getAttributeDescriptions();
+
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+    vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -636,6 +702,56 @@ void DSEngine::CreateCommandPool()
     }
 }
 
+void DSEngine::CreateVertexBuffer()
+{
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = sizeof(vertices[0]) * vertices.size();
+    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+
+    // This has Created the buffer, not allocated any memory
+    if (vkCreateBuffer(m_Device, &bufferInfo, nullptr, &m_VertexBuffer) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create vertex buffer!");
+    }
+
+    // We need to know the correct memory needed to allocate it to the GFX card
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(m_Device, m_VertexBuffer, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    
+    if (vkAllocateMemory(m_Device, &allocInfo, nullptr, &m_VertexBufferMemory) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate vertex buffer memory!");
+    }
+
+    vkBindBufferMemory(m_Device, m_VertexBuffer, m_VertexBufferMemory, 0);
+
+    void* data;
+    vkMapMemory(m_Device, m_VertexBufferMemory, 0, bufferInfo.size, 0, &data);
+    memcpy(data, vertices.data(), (size_t)bufferInfo.size);
+    vkUnmapMemory(m_Device, m_VertexBufferMemory);
+}
+
+uint32_t DSEngine::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+{
+    // Get The Physical Device Memory Properties with flags
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(m_PhysicalDevice, &memProperties);
+
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+            return i;
+        }
+    }
+
+    throw std::runtime_error("failed to find suitable memory type!");
+}
+
 void DSEngine::CreateCommandBuffers()
 {
     m_CommandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
@@ -679,8 +795,6 @@ void DSEngine::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 {
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = 0; // Optional
-    beginInfo.pInheritanceInfo = nullptr; // Optional
 
     if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
         throw std::runtime_error("failed to begin recording command buffer!");
@@ -716,7 +830,12 @@ void DSEngine::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
     scissor.extent = m_SwapChainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+
+    VkBuffer vertexBuffers[] = { m_VertexBuffer };
+    VkDeviceSize offsets[] = { 0 };
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+    vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
 
     vkCmdEndRenderPass(commandBuffer);
 
@@ -742,6 +861,10 @@ VkShaderModule DSEngine::CreateShaderModule(const std::vector<char>& code) {
 void DSEngine::Cleanup()
 {
     // ORDER IS IMPORTANT
+    CleanupSwapChain();
+
+    vkDestroyBuffer(m_Device, m_VertexBuffer, nullptr);
+    vkFreeMemory(m_Device, m_VertexBufferMemory, nullptr);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroySemaphore(m_Device, m_ImageAvailableSemaphores[i], nullptr);
@@ -751,22 +874,9 @@ void DSEngine::Cleanup()
 
     vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
 
-    for (auto framebuffer : m_SwapChainFramebuffers) {
-        vkDestroyFramebuffer(m_Device, framebuffer, nullptr);
-    }
-
     vkDestroyPipeline(m_Device, m_GraphicsPipeline, nullptr);
     vkDestroyPipelineLayout(m_Device, m_PipelineLayout, nullptr);
     vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
-
-
-    // Image Views first because if the images/swap chains are destroy first... the image view may still be using
-    for (auto imageView : m_SwapChainImageViews) {
-        vkDestroyImageView(m_Device, imageView, nullptr);
-    }
-
-    //Swap Chain next
-    vkDestroySwapchainKHR(m_Device, m_SwapChain, nullptr);
 
     // All logic that uses the device is destroyed first THEN the device.
     vkDestroyDevice(m_Device, nullptr);
@@ -917,3 +1027,9 @@ void DSEngine::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMe
 
 // END DEBUG METHODS
 // ============================================================================================================================
+
+
+static void FramebufferResizeCallback(GLFWwindow* window, int width, int height) {
+    auto app = reinterpret_cast<DSEngine*>(glfwGetWindowUserPointer(window));
+    app->m_FramebufferResized = true;
+}
