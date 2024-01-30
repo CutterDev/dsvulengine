@@ -138,9 +138,15 @@
   <ItemGroup>
     <ClCompile Include="DSEngine.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="ModelFactory.cpp" />
+    <ClCompile Include="VulkanDebugHooks.cpp" />
+    <ClCompile Include="VulkanHooks.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DSEngine.h" />
+    <ClInclude Include="ModelFactory.h" />
+    <ClInclude Include="VulkanDebugHooks.h" />
+    <ClInclude Include="VulkanHooks.h" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="..\..\Shaders\frag.spv">

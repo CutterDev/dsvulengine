@@ -14,6 +14,47 @@ void DSEngine::Run()
     MainLoop();
     Cleanup();
 }
+// Initialize the window using GLFW
+void DSEngine::InitWindow()
+{
+    glfwInit();
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+
+    m_Window = glfwCreateWindow(DEFAULTWIDTH, DEFAULTHEIGHT, "DSEngine", nullptr, nullptr);
+    glfwSetFramebufferSizeCallback(m_Window, FramebufferResizeCallback);
+    glfwSetWindowUserPointer(m_Window, this);
+}
+
+// Initialize Vulkan
+void DSEngine::InitVulkan()
+{
+    // THIS ORDER IS IMPORTANT 
+    CreateInstance(&m_Instance);
+
+    if (enableValidationLayers)
+    {
+        // Debugging
+        SetupDebugMessenger(m_Instance, &m_DebugMessenger);
+    }
+
+
+    CreateSurface();
+
+    PickPhysicalDevice();
+    CreateLogicalDevice();
+    CreateSwapChain();
+    CreateImageViews();
+    CreateRenderPass();
+    CreateGraphicsPipeline();
+    CreateFramebuffers();
+    CreateCommandPool();
+
+    m_Models.push_back(CreateModel(m_Device, m_PhysicalDevice, vertices, static_cast<uint32_t>(vertices.size())));
+    m_Models.push_back(CreateModel(m_Device, m_PhysicalDevice, vertices2, static_cast<uint32_t>(vertices2.size())));
+    CreateCommandBuffers();
+    CreateSyncObjects();
+}
 
 void DSEngine::MainLoop()
 {
@@ -97,91 +138,7 @@ void DSEngine::DrawFrame()
     m_CurrentFrame = (m_CurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
-// Initialize the window using GLFW
-void DSEngine::InitWindow()
-{
-    glfwInit();
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-    m_Window = glfwCreateWindow(DEFAULTWIDTH, DEFAULTHEIGHT, "DSEngine", nullptr, nullptr);
-    glfwSetFramebufferSizeCallback(m_Window, FramebufferResizeCallback);
-    glfwSetWindowUserPointer(m_Window, this);
-}
-
-// Initialize Vulkan
-void DSEngine::InitVulkan()
-{
-    // THIS ORDER IS IMPORTANT 
-
-    CreateInstance();
-    // Debugging
-    SetupDebugMessenger();
-
-    CreateSurface();
-
-    PickPhysicalDevice();
-    CreateLogicalDevice();
-    CreateSwapChain();
-    CreateImageViews();
-    CreateRenderPass();
-    CreateGraphicsPipeline();
-    CreateFramebuffers();
-    CreateCommandPool();
-    CreateVertexBuffer();
-    CreateCommandBuffers();
-    CreateSyncObjects();
-}
-
-// Instance of Vulkan
-void DSEngine::CreateInstance()
-{
-    if (enableValidationLayers && !CheckValidationLayerSupport())
-    {
-        throw std::runtime_error("validation layers requested, but not available!");
-    }
-
-    // Create Struct for Application Info
-    VkApplicationInfo appInfo{};
-    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = "DSLearner";
-    appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.pEngineName = "DSEngine";
-    appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_0;
-
-    // Another Struct, referencing the app info
-    VkInstanceCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    createInfo.pApplicationInfo = &appInfo;
-
-    // Extensions are needed to inferface with the window system. GLFW can get us the needed Extensions.
-    auto extensions = GetRequiredExtensions();
-    createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
-    createInfo.ppEnabledExtensionNames = extensions.data();
-
-    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-
-    if (enableValidationLayers)
-    {
-        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-        createInfo.ppEnabledLayerNames = validationLayers.data();
-
-        PopulateDebugMessengerCreateInfo(debugCreateInfo);
-        createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
-    }
-    else
-    {
-        createInfo.enabledLayerCount = 0;
-
-        createInfo.pNext = nullptr;
-    }
-
-    // Validation Checker
-    if (vkCreateInstance(&createInfo, nullptr, &m_Instance) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create instance!");
-    }
-}
 
 // Physical Devices
 // ============================================================================================================================
@@ -702,56 +659,6 @@ void DSEngine::CreateCommandPool()
     }
 }
 
-void DSEngine::CreateVertexBuffer()
-{
-    VkBufferCreateInfo bufferInfo{};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = sizeof(vertices[0]) * vertices.size();
-    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-
-    // This has Created the buffer, not allocated any memory
-    if (vkCreateBuffer(m_Device, &bufferInfo, nullptr, &m_VertexBuffer) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create vertex buffer!");
-    }
-
-    // We need to know the correct memory needed to allocate it to the GFX card
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(m_Device, m_VertexBuffer, &memRequirements);
-
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    
-    if (vkAllocateMemory(m_Device, &allocInfo, nullptr, &m_VertexBufferMemory) != VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate vertex buffer memory!");
-    }
-
-    vkBindBufferMemory(m_Device, m_VertexBuffer, m_VertexBufferMemory, 0);
-
-    void* data;
-    vkMapMemory(m_Device, m_VertexBufferMemory, 0, bufferInfo.size, 0, &data);
-    memcpy(data, vertices.data(), (size_t)bufferInfo.size);
-    vkUnmapMemory(m_Device, m_VertexBufferMemory);
-}
-
-uint32_t DSEngine::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
-{
-    // Get The Physical Device Memory Properties with flags
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(m_PhysicalDevice, &memProperties);
-
-    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-            return i;
-        }
-    }
-
-    throw std::runtime_error("failed to find suitable memory type!");
-}
-
 void DSEngine::CreateCommandBuffers()
 {
     m_CommandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
@@ -830,12 +737,21 @@ void DSEngine::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
     scissor.extent = m_SwapChainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
+    for (DSModel* model : m_Models)
+    {
+        VkBuffer vertexBuffers[] = { model->VertexBuffer };
+        VkDeviceSize offsets[] = { 0 };
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
-    VkBuffer vertexBuffers[] = { m_VertexBuffer };
-    VkDeviceSize offsets[] = { 0 };
-    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+        vkCmdDraw(commandBuffer, model->VertexCount, 1, 0, 0);
+    }
 
-    vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
+
+    //VkBuffer vertexBuffers2[] = { m_VertexBuffer2 };
+    //VkDeviceSize offsets2[] = { 0 };
+    //vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers2, offsets2);
+
+    //vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices2.size()), 1, 0, 0);
 
     vkCmdEndRenderPass(commandBuffer);
 
@@ -863,8 +779,13 @@ void DSEngine::Cleanup()
     // ORDER IS IMPORTANT
     CleanupSwapChain();
 
-    vkDestroyBuffer(m_Device, m_VertexBuffer, nullptr);
-    vkFreeMemory(m_Device, m_VertexBufferMemory, nullptr);
+
+    for (DSModel* model : m_Models)
+    {
+        vkDestroyBuffer(m_Device, model->VertexBuffer, nullptr);
+        vkFreeMemory(m_Device, model->VertexBufferMemory, nullptr);
+    }
+
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroySemaphore(m_Device, m_ImageAvailableSemaphores[i], nullptr);
@@ -893,22 +814,6 @@ void DSEngine::Cleanup()
 
     glfwDestroyWindow(m_Window);
     glfwTerminate();
-}
-
-std::vector<const char*> DSEngine::GetRequiredExtensions()
-{
-    uint32_t glfwExtensionCount = 0;
-    const char** glfwExtensions;
-    glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-
-    std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
-
-    // Get Debug Extensions needed also
-    if (enableValidationLayers) {
-        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-    }
-
-    return extensions;
 }
 
 VkSurfaceFormatKHR DSEngine::ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
@@ -954,80 +859,6 @@ VkExtent2D DSEngine::ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabiliti
         return actualExtent;
     }
 }
-
-// DEBUG METHODS
-// ============================================================================================================================
-
-bool DSEngine::CheckValidationLayerSupport()
-{
-    // This helps us get the amount of layers needed first 
-    uint32_t layerCount;
-    vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-
-    std::vector<VkLayerProperties> availableLayers(layerCount);
-    // do the same call but now we know the layer count.
-    vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
-
-    for (const char* layerName : validationLayers) {
-        bool layerFound = false;
-
-        for (const auto& layerProperties : availableLayers) {
-            if (strcmp(layerName, layerProperties.layerName) == 0) {
-                layerFound = true;
-                break;
-            }
-        }
-
-        if (!layerFound) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-void DSEngine::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
-{
-    createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-    createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-    createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    createInfo.pfnUserCallback = DebugCallback;
-    createInfo.pUserData = nullptr; // Optional
-}
-
-void DSEngine::SetupDebugMessenger()
-{
-    if (!enableValidationLayers) return;
-
-    VkDebugUtilsMessengerCreateInfoEXT createInfo{};
-    PopulateDebugMessengerCreateInfo(createInfo);
-
-    if (CreateDebugUtilsMessengerEXT(m_Instance, &createInfo, nullptr, &m_DebugMessenger) != VK_SUCCESS) {
-        throw std::runtime_error("failed to set up debug messenger!");
-    }
-}
-
-VkResult DSEngine::CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
-    auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-    if (func != nullptr) {
-        return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
-    }
-    else {
-        return VK_ERROR_EXTENSION_NOT_PRESENT;
-    }
-}
-
-void DSEngine::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
-    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-    if (func != nullptr) {
-        func(instance, debugMessenger, pAllocator);
-    }
-}
-
-// END DEBUG METHODS
-// ============================================================================================================================
-
 
 static void FramebufferResizeCallback(GLFWwindow* window, int width, int height) {
     auto app = reinterpret_cast<DSEngine*>(glfwGetWindowUserPointer(window));
