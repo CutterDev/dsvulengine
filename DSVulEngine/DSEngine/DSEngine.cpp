@@ -19,7 +19,7 @@ void DSEngine::InitWindow()
 {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
     m_Window = glfwCreateWindow(DEFAULTWIDTH, DEFAULTHEIGHT, "DSEngine", nullptr, nullptr);
     glfwSetFramebufferSizeCallback(m_Window, FramebufferResizeCallback);
@@ -46,12 +46,26 @@ void DSEngine::InitVulkan()
     CreateSwapChain();
     CreateImageViews();
     CreateRenderPass();
+
+    for (int i = 0; i < 10; i++)
+    {
+        m_Models.push_back(CreateModel(
+            &m_Device,
+            m_PhysicalDevice,
+            rectangle,
+            static_cast<uint32_t>(rectangle.size()),
+            indices,
+            static_cast<uint32_t>(indices.size())
+        )
+        );
+    }
+
+    CreateDescriptorSetLayout();
+    CreateDescriptorPool();
+    CreateDescriptorSets();
     CreateGraphicsPipeline();
     CreateFramebuffers();
     CreateCommandPool();
-
-    m_Models.push_back(CreateModel(m_Device, m_PhysicalDevice, vertices, static_cast<uint32_t>(vertices.size())));
-    m_Models.push_back(CreateModel(m_Device, m_PhysicalDevice, vertices2, static_cast<uint32_t>(vertices2.size())));
     CreateCommandBuffers();
     CreateSyncObjects();
 }
@@ -410,6 +424,8 @@ void DSEngine::RecreateSwapChain()
 
     vkDeviceWaitIdle(m_Device);
 
+    CleanupSwapChain();
+
     CreateSwapChain();
     CreateImageViews();
     CreateFramebuffers();
@@ -504,6 +520,7 @@ void DSEngine::CreateRenderPass()
     }
 }
 
+
 void DSEngine::CreateGraphicsPipeline()
 {
     auto vertShaderCode = ReadFile("vert.spv");
@@ -554,7 +571,7 @@ void DSEngine::CreateGraphicsPipeline()
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
 
     VkPipelineMultisampleStateCreateInfo multisampling{};
@@ -589,7 +606,8 @@ void DSEngine::CreateGraphicsPipeline()
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 0;
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &m_DescriptorSetLayout;
     pipelineLayoutInfo.pushConstantRangeCount = 0;
 
     if (vkCreatePipelineLayout(m_Device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout) != VK_SUCCESS) {
@@ -737,27 +755,95 @@ void DSEngine::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
     scissor.extent = m_SwapChainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
+    int count = 0;
     for (DSModel* model : m_Models)
     {
-        VkBuffer vertexBuffers[] = { model->VertexBuffer };
-        VkDeviceSize offsets[] = { 0 };
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
-        vkCmdDraw(commandBuffer, model->VertexCount, 1, 0, 0);
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = model->UniformBuffers[m_CurrentFrame];
+        bufferInfo.offset = 0;
+        bufferInfo.range = sizeof(UniformBufferObject);
+
+
+        VkWriteDescriptorSet descriptorWrite{};
+        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.dstSet = model->DescriptorSets[m_CurrentFrame];
+        descriptorWrite.dstBinding = 0;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pBufferInfo = &bufferInfo;
+        vkUpdateDescriptorSets(m_Device, 1, &descriptorWrite, 0, nullptr);
+        
+
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_PipelineLayout, 0, 1, &model->DescriptorSets[m_CurrentFrame], 0, nullptr);
+        model->Update(m_CurrentFrame, (float)m_SwapChainExtent.width, m_SwapChainExtent.height, glm::vec3(0, count, 0));
+        model->Draw(commandBuffer);
+
+        count++;
     }
-
-
-    //VkBuffer vertexBuffers2[] = { m_VertexBuffer2 };
-    //VkDeviceSize offsets2[] = { 0 };
-    //vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers2, offsets2);
-
-    //vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices2.size()), 1, 0, 0);
 
     vkCmdEndRenderPass(commandBuffer);
 
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
         throw std::runtime_error("failed to record command buffer!");
     }
+}
+
+void DSEngine::CreateDescriptorSetLayout()
+{
+    VkDescriptorSetLayoutBinding uboLayoutBinding{};
+    uboLayoutBinding.binding = 0;
+    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboLayoutBinding.descriptorCount = 1;
+    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo{};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.bindingCount = 1;
+    layoutInfo.pBindings = &uboLayoutBinding;
+
+    if (vkCreateDescriptorSetLayout(m_Device, &layoutInfo, nullptr, &m_DescriptorSetLayout) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create descriptor set layout!");
+    }
+}
+
+
+void DSEngine::CreateDescriptorPool()
+{
+    VkDescriptorPoolSize poolSize{};
+    poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSize.descriptorCount =  static_cast<uint32_t>(m_Models.size() * MAX_FRAMES_IN_FLIGHT);
+
+    VkDescriptorPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = 1;
+    poolInfo.pPoolSizes = &poolSize;
+
+    poolInfo.maxSets = static_cast<uint32_t>(m_Models.size() * MAX_FRAMES_IN_FLIGHT);
+
+    if (vkCreateDescriptorPool(m_Device, &poolInfo, nullptr, &m_DescriptorPool) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create descriptor pool!");
+    }
+}
+
+void DSEngine::CreateDescriptorSets()
+{
+    for (DSModel* model : m_Models)
+    {
+        std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_DescriptorSetLayout);
+        VkDescriptorSetAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = m_DescriptorPool;
+        allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+        allocInfo.pSetLayouts = layouts.data();
+
+        model->DescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+        if (vkAllocateDescriptorSets(m_Device, &allocInfo, model->DescriptorSets.data()) != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate descriptor sets!");
+        }
+    }
+
 }
 
 VkShaderModule DSEngine::CreateShaderModule(const std::vector<char>& code) {
@@ -779,13 +865,14 @@ void DSEngine::Cleanup()
     // ORDER IS IMPORTANT
     CleanupSwapChain();
 
-
     for (DSModel* model : m_Models)
     {
-        vkDestroyBuffer(m_Device, model->VertexBuffer, nullptr);
-        vkFreeMemory(m_Device, model->VertexBufferMemory, nullptr);
+        model->Destroy(m_Device);
     }
 
+    vkDestroyDescriptorPool(m_Device, m_DescriptorPool, nullptr);
+
+    vkDestroyDescriptorSetLayout(m_Device, m_DescriptorSetLayout, nullptr);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroySemaphore(m_Device, m_ImageAvailableSemaphores[i], nullptr);

@@ -16,6 +16,18 @@
     <ClCompile Include="ModelFactory.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="DSSimpleModel.cpp">
+      <Filter>Source Files\Models</Filter>
+    </ClCompile>
+    <ClCompile Include="DSModel.cpp">
+      <Filter>Source Files\Models</Filter>
+    </ClCompile>
+    <ClCompile Include="DSModelImproved.cpp">
+      <Filter>Source Files\Models</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera.cpp">
+      <Filter>Source Files\Models</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">
@@ -29,6 +41,12 @@
     </Filter>
     <Filter Include="Resource Files\Shaders">
       <UniqueIdentifier>{d77c5317-f585-4691-8f70-a4daa07ba156}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Models">
+      <UniqueIdentifier>{d86d8dd6-a50a-488f-ac4a-d30ed9415b3f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Models">
+      <UniqueIdentifier>{0e0eb392-20f6-461a-90b6-748f70f8751d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -44,12 +62,24 @@
     <ClInclude Include="ModelFactory.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="DSModel.h">
+      <Filter>Header Files\Models</Filter>
+    </ClInclude>
+    <ClInclude Include="DSModelImproved.h">
+      <Filter>Header Files\Models</Filter>
+    </ClInclude>
+    <ClInclude Include="DSSimpleModel.h">
+      <Filter>Header Files\Models</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera.h">
+      <Filter>Header Files\Models</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\Shaders\frag.spv">
+    <None Include="frag.spv">
       <Filter>Resource Files\Shaders</Filter>
     </None>
-    <None Include="..\..\Shaders\vert.spv">
+    <None Include="vert.spv">
       <Filter>Resource Files\Shaders</Filter>
     </None>
   </ItemGroup>

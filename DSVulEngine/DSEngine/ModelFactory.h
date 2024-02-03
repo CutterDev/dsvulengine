@@ -12,46 +12,22 @@
 #include <array>
 #include <vector>
 
-struct Vertex {
-    glm::vec2 Pos;
-    glm::vec3 Color;
+#include "DSModel.h"
 
-    // We need to tell Vulkan how to pass this data format to the Vertex Shader once its been uplaoded to memoru
-    static VkVertexInputBindingDescription GetBindingDesc()
-    {
-        VkVertexInputBindingDescription bindingDescription{};
+DSModel* CreateModel(
+    VkDevice* device,
+    VkPhysicalDevice physicalDevice,
+    const std::vector<Vertex> vertices,
+    uint32_t size,
+    const std::vector<uint16_t> indices,
+    uint32_t indicesSize
+);
+void CreateVertexBuffer(VkDevice* device, VkPhysicalDevice physicalDevice, VkBuffer& buffer, VkDeviceMemory& memory, const std::vector<Vertex> vertices, uint32_t size);
 
-        bindingDescription.binding = 0;
-        bindingDescription.stride = sizeof(Vertex); // stride in memory per vertex
-        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+void CreateIndexBuffer(VkDevice* device, VkPhysicalDevice physicalDevice, VkBuffer& buffer, VkDeviceMemory& memory, const std::vector<uint16_t> indices, uint32_t size);
 
-        return bindingDescription;
-    }
-
-    static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions() {
-        std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
-        attributeDescriptions[0].binding = 0;
-        attributeDescriptions[0].location = 0;
-        attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
-        attributeDescriptions[0].offset = offsetof(Vertex, Pos);
-
-        attributeDescriptions[1].binding = 0;
-        attributeDescriptions[1].location = 1;
-        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[1].offset = offsetof(Vertex, Color);
-
-        return attributeDescriptions;
-    }
-};
-
-struct DSModel
-{
-    VkBuffer VertexBuffer;
-    VkDeviceMemory VertexBufferMemory;
-    uint32_t VertexCount;
-};
-
-
-DSModel* CreateModel(VkDevice device, VkPhysicalDevice physicalDevice,const std::vector<Vertex> vertices, uint32_t size);
+void CreateBuffer(VkDevice* device, VkPhysicalDevice physicalDevice, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
+    VkBuffer& buffer,
+    VkDeviceMemory& bufferMemory);
 
 uint32_t FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties);

@@ -36,6 +36,16 @@ const std::vector<Vertex> vertices2 = {
     {{-0.5f, 0.25f}, {0.0f, 0.0f, 1.0f}}
 };
 
+const std::vector<Vertex> rectangle = {
+    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
+};
+
+const std::vector<uint16_t> indices = {
+    0, 1, 2, 2, 3, 0
+};
 
 struct QueueFamilyIndices {
     std::optional<uint32_t> GraphicsFamily;
@@ -63,7 +73,6 @@ public:
     void Run();
 
 private:
-    const int MAX_FRAMES_IN_FLIGHT = 2;
     const uint32_t DEFAULTWIDTH = 800;
     const uint32_t DEFAULTHEIGHT = 600;
 
@@ -92,6 +101,10 @@ private:
     std::vector<DSModel*> m_Models;
 
     VkRenderPass m_RenderPass;
+    
+    VkDescriptorSetLayout m_DescriptorSetLayout;
+    VkDescriptorPool m_DescriptorPool;
+
     VkPipelineLayout m_PipelineLayout;
     VkPipeline m_GraphicsPipeline;
 
@@ -116,12 +129,14 @@ private:
     void RecreateSwapChain();
     void CreateImageViews();
     void CreateRenderPass();
+    void CreateDescriptorSetLayout();
     void CreateGraphicsPipeline();
     void CreateFramebuffers();
     void CreateCommandPool();
     void CreateCommandBuffers();
     void CreateSyncObjects();
-
+    void CreateDescriptorPool();
+    void CreateDescriptorSets();
     void CleanupSwapChain();
 
     void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
