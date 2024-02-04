@@ -28,6 +28,9 @@
     <ClCompile Include="Camera.cpp">
       <Filter>Source Files\Models</Filter>
     </ClCompile>
+    <ClCompile Include="VulkanGraphics.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">
@@ -73,6 +76,9 @@
     </ClInclude>
     <ClInclude Include="Camera.h">
       <Filter>Header Files\Models</Filter>
+    </ClInclude>
+    <ClInclude Include="VulkanGraphics.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

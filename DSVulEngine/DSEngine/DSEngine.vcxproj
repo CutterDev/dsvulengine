@@ -144,6 +144,7 @@
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="ModelFactory.cpp" />
     <ClCompile Include="VulkanDebugHooks.cpp" />
+    <ClCompile Include="VulkanGraphics.cpp" />
     <ClCompile Include="VulkanHooks.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -154,6 +155,7 @@
     <ClInclude Include="DSModelImproved.h" />
     <ClInclude Include="ModelFactory.h" />
     <ClInclude Include="VulkanDebugHooks.h" />
+    <ClInclude Include="VulkanGraphics.h" />
     <ClInclude Include="VulkanHooks.h" />
   </ItemGroup>
   <ItemGroup>

@@ -85,6 +85,7 @@ public:
     virtual void Update(uint32_t currentImage, float swapChainWidth, float swapChainHeight, glm::vec3 position);
     virtual void Draw(VkCommandBuffer commandBuffer);
     virtual void Destroy(VkDevice& device);
+    void ClearUniforms(VkDevice& device);
 
     void Translate(glm::vec3 position);
 };

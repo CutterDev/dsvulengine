@@ -27,6 +27,14 @@ void DSModel::Draw(VkCommandBuffer commandBuffer)
     vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(IndiceCount), 1, 0, 0, 0);
 }
 
+void DSModel::ClearUniforms(VkDevice& device)
+{
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        vkDestroyBuffer(device, UniformBuffers[i], nullptr);
+        vkFreeMemory(device, UniformBuffersMemory[i], nullptr);
+    }
+}
+
 void DSModel::Destroy(VkDevice& device)
 {
     vkDestroyBuffer(device, IndexBuffer, nullptr);
@@ -34,9 +42,4 @@ void DSModel::Destroy(VkDevice& device)
 
     vkDestroyBuffer(device, VertexBuffer, nullptr);
     vkFreeMemory(device, VertexBufferMemory, nullptr);
-
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        vkDestroyBuffer(device, UniformBuffers[i], nullptr);
-        vkFreeMemory(device, UniformBuffersMemory[i], nullptr);
-    }
 }
