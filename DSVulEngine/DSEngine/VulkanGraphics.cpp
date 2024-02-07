@@ -33,15 +33,15 @@ void VulkanGraphics::Initialize(GLFWwindow* window)
 
     CreateRenderPass();
 
-    for (int i = 0; i < 10; i++)
+    for (MeshData meshData: MeshFactory::Instance().Meshes)
     {
         m_Models.push_back(CreateModel(
             &m_Device,
             m_PhysicalDevice,
-            rectangle,
-            static_cast<uint32_t>(rectangle.size()),
-            indices,
-            static_cast<uint32_t>(indices.size())
+            meshData.Vertices,
+            static_cast<uint32_t>(meshData.Vertices->size()),
+            meshData.Indices,
+            static_cast<uint32_t>(meshData.Indices->size())
         )
         );
     }

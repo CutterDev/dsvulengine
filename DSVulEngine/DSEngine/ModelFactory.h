@@ -17,9 +17,9 @@
 DSModel* CreateModel(
     VkDevice* device,
     VkPhysicalDevice physicalDevice,
-    const std::vector<Vertex> vertices,
+    const std::vector<Vertex>* vertices,
     uint32_t size,
-    const std::vector<uint16_t> indices,
+    const std::vector<uint16_t>* indices,
     uint32_t indicesSize
 );
 void CreateVertexBuffer(VkDevice* device, VkPhysicalDevice physicalDevice, VkBuffer& buffer, VkDeviceMemory& memory, const std::vector<Vertex> vertices, uint32_t size);

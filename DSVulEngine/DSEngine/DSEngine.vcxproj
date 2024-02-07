@@ -141,19 +141,30 @@
     <ClCompile Include="DSModel.cpp" />
     <ClCompile Include="DSSimpleModel.cpp" />
     <ClCompile Include="DSModelImproved.cpp" />
+    <ClCompile Include="Entity.cpp" />
+    <ClCompile Include="EntityManager.cpp" />
+    <ClCompile Include="IComponent.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="MeshFactory.cpp" />
     <ClCompile Include="ModelFactory.cpp" />
+    <ClCompile Include="MeshComponent.cpp" />
     <ClCompile Include="VulkanDebugHooks.cpp" />
     <ClCompile Include="VulkanGraphics.cpp" />
     <ClCompile Include="VulkanHooks.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Bindings.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="DSEngine.h" />
     <ClInclude Include="DSModel.h" />
     <ClInclude Include="DSSimpleModel.h" />
     <ClInclude Include="DSModelImproved.h" />
+    <ClInclude Include="Entity.h" />
+    <ClInclude Include="EntityManager.h" />
+    <ClInclude Include="IComponent.h" />
+    <ClInclude Include="MeshFactory.h" />
     <ClInclude Include="ModelFactory.h" />
+    <ClInclude Include="MeshComponent.h" />
     <ClInclude Include="VulkanDebugHooks.h" />
     <ClInclude Include="VulkanGraphics.h" />
     <ClInclude Include="VulkanHooks.h" />

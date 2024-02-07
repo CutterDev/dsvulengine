@@ -5,7 +5,15 @@ void DSEngine::Run()
     //
     // Initialization
     InitWindow();
+
+
+    // Setup Entity Manager
+    m_EntityManager = {};
+
+    Sandbox();
+
     m_VulkanGraphics.Initialize(m_Window);
+
 
     //
     // Main loop
@@ -23,9 +31,19 @@ void DSEngine::InitWindow()
     m_Window = glfwCreateWindow(DEFAULTWIDTH, DEFAULTHEIGHT, "DSEngine", nullptr, nullptr);
 }
 
+void DSEngine::Sandbox()
+{
+    Entity entity = {};
+
+    MeshComponent mesh = MeshFactory::Instance().CreateMeshComponent(&entity.Transform, &rectangle, &indices);
+    entity.AddComponent(mesh);
+    m_EntityManager.AddEntity(entity);
+}
+
 void DSEngine::MainLoop()
 {
-    while (!glfwWindowShouldClose(m_Window)) {
+    while (!glfwWindowShouldClose(m_Window))
+    {
         glfwPollEvents();
         Tick();
     }
@@ -33,6 +51,7 @@ void DSEngine::MainLoop()
 
 void DSEngine::Tick()
 {
+    m_EntityManager.Update();
     m_VulkanGraphics.DrawFrame();
 }
 
